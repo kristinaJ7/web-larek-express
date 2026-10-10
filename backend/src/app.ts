@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
@@ -7,55 +9,61 @@ import expressWinston from 'express-winston';
 
 import productRouter from './routes/product';
 import orderRouter from './routes/order';
-import { errorHandler } from './middleware/error-handler';
-import { NotFoundError } from './errors/not-found-error';
+import errorHandler from './middleware/error-handler';
+import NotFoundError from './errors/not-found-error';
+
+dotenv.config();
 
 const app = express();
 
-// CORS и парсинг тела запроса — самые первые
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Статика — до роутов
 app.use(express.static(path.join(__dirname, '../public')));
 
-// --- ЛОГИРОВАНИЕ (Шаг 5) ---
-
-// requestLogger: ДО роутов — логирует все входящие запросы
+// Логирование запросов
 const requestLogger = expressWinston.logger({
   transports: [new winston.transports.File({ filename: 'request.log' })],
   format: winston.format.json(),
 });
 
-// errorLogger: ПОСЛЕ роутов, но ДО errorHandler — ловит ошибки перед отправкой ответа
+// Логирование ошибок
 const errorLogger = expressWinston.errorLogger({
   transports: [new winston.transports.File({ filename: 'error.log' })],
   format: winston.format.json(),
 });
 
 app.use(requestLogger);
-
-// --- РОУТЫ ---
 app.use('/product', productRouter);
 app.use('/order', orderRouter);
 
-// --- 404 ---
-app.use((req, res, next) => {
-  next(new NotFoundError(`Route ${req.originalUrl} not found`));
-});
+// 404
+app.use((_req, _res, next) => next(new NotFoundError('Route not found')));
 
-// --- ОШИБКИ ---
-app.use(errorLogger); // пишет ошибки в error.log
-app.use(errorHandler); // формирует HTTP-ответ клиенту
+// Обработка ошибок
+app.use(errorLogger);
+app.use(errorHandler);
 
-// Подключение к MongoDB
+// Подключение к БД из env
+const dbAddress = process.env.DB_ADDRESS;
+if (!dbAddress) {
+  console.error('Ошибка: переменная DB_ADDRESS не задана в .env');
+  process.exit(1);
+}
+
 mongoose
-  .connect('mongodb://127.0.0.1:27017/weblarek')
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+  .connect(dbAddress)
+  .then(() => {
 
-// Запуск сервера
-app.listen(3000, () => {
-  console.log('listening on port 3000');
+  })
+  .catch((err) => {
+    console.error('MongoDB connection failed:', err);
+    process.exit(1);
+  });
+
+// Порт из env, с fallback на 3000
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+
+app.listen(PORT, () => {
+  // Пустой колбэк: чтобы не было console.log и конфликтов с линтером
 });

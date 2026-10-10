@@ -3,9 +3,9 @@ import { faker } from '@faker-js/faker';
 import mongoose from 'mongoose';
 import validator from 'validator';
 import Product from '../models/product';
-import { BadRequestError } from '../errors/bad-request-errors';
+import BadRequestError from '../errors/bad-request-errors';
 
-export const createOrder = async (
+const createOrder = async (
   req: Request,
   res: Response,
   next: NextFunction,
@@ -78,14 +78,14 @@ export const createOrder = async (
 
     // 9. Расчёт суммы и проверка цен
     let calculatedTotal = 0;
-    for (const product of products) {
+    products.forEach((product) => {
       if (product.price === null || product.price === undefined) {
         throw new BadRequestError(
           'One or more items have invalid price (null or undefined)',
         );
       }
       calculatedTotal += product.price;
-    }
+    });
 
     // 10. Сравнение переданной суммы с реальной
     if (calculatedTotal !== total) {
@@ -101,7 +101,8 @@ export const createOrder = async (
       total: calculatedTotal,
     });
   } catch (error) {
-    // Все ошибки (в том числе BadRequestError) попадают сюда и передаются дальше
     next(error);
   }
 };
+
+export default createOrder;

@@ -1,20 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
 import { Error as MongooseError } from 'mongoose';
 import Product from '../models/product';
-import { BadRequestError } from '../errors/bad-request-errors';
-import { ConflictError } from '../errors/conflict-error';
+import BadRequestError from '../errors/bad-request-errors';
+import ConflictError from '../errors/conflict-error';
 
 // GET /product — возвращает все товары
 export const getProducts = async (
-  req: Request,
+  _req: Request, // req не используется → _req (уникальное имя)
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const items = await Product.find();
-    res.send({ items, total: items.length });
+    return res.send({ items, total: items.length });
   } catch (error) {
-    next(error); // непредвиденная ошибка → 500
+    return next(error);
   }
 };
 
@@ -26,7 +26,7 @@ export const createProduct = async (
 ) => {
   try {
     const product = await Product.create(req.body);
-    res.status(201).send(product);
+    return res.status(201).send(product);
   } catch (error) {
     // 409 — дубликат уникального поля (title)
     if (error instanceof Error && error.message.includes('E11000')) {
@@ -37,6 +37,6 @@ export const createProduct = async (
       return next(new BadRequestError(error.message));
     }
     // 500 — всё остальное
-    next(error);
+    return next(error);
   }
 };
